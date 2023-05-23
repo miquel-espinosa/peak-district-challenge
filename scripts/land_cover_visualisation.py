@@ -17,37 +17,37 @@ import torch
 import land_cover_analysis as lca
 
 ## Set default settings.
-plt.rcParams['axes.prop_cycle'] = cycler(color=sns.color_palette('colorblind'))
-plt.rcParams['axes.unicode_minus'] = True
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Arial']
-plt.rcParams['xtick.bottom'] = True
-plt.rcParams['ytick.left'] = True
+# plt.rcParams['axes.prop_cycle'] = cycler(color=sns.color_palette('colorblind'))
+# plt.rcParams['axes.unicode_minus'] = True
+# plt.rcParams['font.family'] = 'sans-serif'
+# plt.rcParams['font.sans-serif'] = ['Arial']
+# plt.rcParams['xtick.bottom'] = True
+# plt.rcParams['ytick.left'] = True
 
-## Create list with standard colors:
-color_dict_stand = {}
-for ii, x in enumerate(plt.rcParams['axes.prop_cycle']()):
-    color_dict_stand[ii] = x['color']
-    if ii > 8:
-        break  # after 8 it repeats (for ever)
-color_dict_stand[10] = '#994F00'
-color_dict_stand[11] = '#4B0092'
-color_dict_stand[1] = '#0e8212'
-color_dict_stand[2] = '#a33b1a'
-color_dict_stand[3] = '#465E85'
-color_dict_stand[4] = '#8b7c1e'
+# ## Create list with standard colors:
+# color_dict_stand = {}
+# for ii, x in enumerate(plt.rcParams['axes.prop_cycle']()):
+#     color_dict_stand[ii] = x['color']
+#     if ii > 8:
+#         break  # after 8 it repeats (for ever)
+# color_dict_stand[10] = '#994F00'
+# color_dict_stand[11] = '#4B0092'
+# color_dict_stand[1] = '#0e8212'
+# color_dict_stand[2] = '#a33b1a'
+# color_dict_stand[3] = '#465E85'
+# color_dict_stand[4] = '#8b7c1e'
 
-## Retrieve LC class specific colour mappings:
-__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-with open(os.path.join(Path(__location__).parent, 'content/lc_colour_mapping.json'), 'r') as f:
-    lc_colour_mapping_inds = json.load(f, object_hook=lambda d: {int(k) if k.lstrip('-').isdigit() else k: v for k, v in d.items()})  # mapping from class ind to colour hex
+# ## Retrieve LC class specific colour mappings:
+# __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+# with open(os.path.join(Path(__location__).parent, 'content/lc_colour_mapping.json'), 'r') as f:
+#     lc_colour_mapping_inds = json.load(f, object_hook=lambda d: {int(k) if k.lstrip('-').isdigit() else k: v for k, v in d.items()})  # mapping from class ind to colour hex
 
-# dict_ind_to_name, dict_name_to_ind = lca.get_lc_mapping_inds_names_dicts()
-df_schema = lca.create_df_mapping_labels_2022_to_80s()
-dict_ind_to_name = {df_schema.iloc[x]['index_2022']: df_schema.iloc[x]['description_2022'] for x in range(len(df_schema))}
-lc_colour_mapping_names = {dict_ind_to_name[k]: v for k, v in lc_colour_mapping_inds.items() if k in dict_ind_to_name.keys()}
+# # dict_ind_to_name, dict_name_to_ind = lca.get_lc_mapping_inds_names_dicts()
+# df_schema = lca.create_df_mapping_labels_2022_to_80s()
+# dict_ind_to_name = {df_schema.iloc[x]['index_2022']: df_schema.iloc[x]['description_2022'] for x in range(len(df_schema))}
+# lc_colour_mapping_names = {dict_ind_to_name[k]: v for k, v in lc_colour_mapping_inds.items() if k in dict_ind_to_name.keys()}
 
-fig_folder = os.path.join(Path(__location__).parent, 'figures/')
+# fig_folder = os.path.join(Path(__location__).parent, 'figures/')
 
 def create_lc_cmap(lc_class_name_list, unique_labels_array):
     '''Create custom colormap of LC classes, based on list of names given.'''
