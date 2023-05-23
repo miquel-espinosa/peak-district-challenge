@@ -8,11 +8,11 @@ from scipy.stats import beta
 
 def combine_masks(x, method=None):
     img1, mask1 = x
-    original = img1.deepcopy()
-    permute = torch.randperm(x.shape[0])
-    class_change =  1 - (mask1 == mask2)
-    artificial_mask = sample_mask(x, 1., 3, shape, max_soft=0.0, reformulate=False)
-    final_mask = torch.logical_and(artificial_mask, class_change)
+    original = img1#.deepcopy()
+    permute = torch.randperm(img1.shape[0])
+    class_change =  torch.logical_not(mask1 == mask1[permute])
+    _, artificial_mask = sample_mask(1., 3, img1.shape[-2:], max_soft=0.0, reformulate=False)
+    final_mask = torch.logical_and(torch.tensor(artificial_mask), class_change)
 
     return original, img1 * artificial_mask + img1[permute] * artificial_mask, final_mask
     
