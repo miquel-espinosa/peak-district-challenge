@@ -11,18 +11,19 @@ import matplotlib.pyplot as plt
 from unet import UNet
 
 
-def compute_loss_and_acc(loader, model, criterion):
+def compute_loss_and_acc(loader, model, criterion, subset):
     loss = 0
     correct = 0
     for batch in loader:
         images_1, images_2, targets = combine_masks(batch, "continuous_fmix")
         images_1, images_2, targets = images_1.to(device), images_2.to(device), targets.to(device)
-        outputs = model(images_1, images_2).squeeze()
+        outputs = model(images_1.float(), images_2.float()).squeeze()
         loss += criterion(outputs, targets).sum().item()  # sum up batch loss
         pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
         correct += pred.eq(targets.view_as(pred)).sum().item()
     loss /= len(loader.dataset)
-    print('\nAverage loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    correct /= len(loader.dataset)
+    print('\n[{}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(subset,
         loss, correct, len(loader.dataset),
         100. * correct / len(loader.dataset)))
 
@@ -35,14 +36,15 @@ LOG_INTERVAL = 10
 TRAIN_TEST_RATIO = 0.8
 
 CROP_SIZE = 128 # RandomCrop transform
-BATCH_SIZE = 8
-LR = 0.001
+BATCH_SIZE = 16
+LR = 0.0001
 EPOCHS=50
 SEED=42
 
 # ------------------- DIRECTORY PATHS ------------------- #
 
-ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
+# ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
+ROOT_PATH = '/shared/miguel/peak-district-challenge'
 dir_test_im_patches = f'{ROOT_PATH}/data/images_detailed_annotation/'
 dir_test_mask_patches = f'{ROOT_PATH}/data/masks_detailed_annotation/'
 path_mapping_dict=f'{ROOT_PATH}/content/label_mapping_dicts/label_mapping_dict__main_categories__2023-04-20-1541.pkl'
@@ -106,7 +108,7 @@ for epoch in range(1, EPOCHS + 1):
 
     # Training loop
     for batch_idx, batch in enumerate(trainloader):
-        
+        break
         # Create the artificial augmented image and get the change mask
         original_image, augmented_image, change_mask = combine_masks(batch, "continuous_fmix")
         
@@ -132,11 +134,11 @@ for epoch in range(1, EPOCHS + 1):
     
         scheduler.step()
     
-    compute_loss_and_acc(trainloader, model, criterion)
+    compute_loss_and_acc(trainloader, model, criterion, subset='train')
     
     model.eval()
     with torch.no_grad():
-        compute_loss_and_acc(valloader, model, criterion)
+        compute_loss_and_acc(valloader, model, criterion, subset='validation')
     
     if epoch % 10 == 0:
-        torch.save(model.state_dict(), f"model_{epoch}.pth")
+        torch.save(model.state_dict(), f"results/model_{epoch}.pth")

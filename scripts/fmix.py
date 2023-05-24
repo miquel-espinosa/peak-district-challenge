@@ -22,7 +22,8 @@ def combine_masks(x, method=None):
     final_mask = final_mask*artificial_mask
     modified_image = img * artificial_mask + img[permute] * (1-artificial_mask)
     
-    return original, modified_image, final_mask, img[permute], artificial_mask
+    # return original, modified_image, final_mask, img[permute], artificial_mask
+    return original, modified_image, final_mask
 
 def fmix(x):
     return fmix_mask(10., 3, x.shape[-2:], max_soft=0.0, reformulate=False)

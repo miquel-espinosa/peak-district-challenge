@@ -8,3 +8,5 @@ data/
 fake-data/
 .DS_Store
 .idea/
+*.pth
+*.pt
