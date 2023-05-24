@@ -27,8 +27,13 @@ trainloader = torch.utils.data.DataLoader(ds, batch_size=1)
 summ = torch.zeros((3))
 summ_x2 = torch.zeros((3))
 
+min = torch.tensor([math.inf, math.inf, math.inf])
+max = torch.tensor([-math.inf, -math.inf, -math.inf])
+
 for img, _ in trainloader:
     for i in range(0, len(summ)):
+        min[i] = torch.min(img[0,i,:,:].min(), min[i])
+        max[i] = torch.max(img[0,i,:,:].min(), max[i])
         summ[i] += img[0,i,:,:].sum()
         summ_x2[i] += (img[0,i,:,:] ** 2).sum()
 
@@ -41,3 +46,6 @@ mean = summ/total_pixels
 stdev = torch.sqrt((summ_x2 / total_pixels) - (mean * mean)) 
 print("mean", mean)
 print('std', stdev)
+
+print('min', min)
+print('max', max)

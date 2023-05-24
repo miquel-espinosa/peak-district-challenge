@@ -28,6 +28,23 @@ import custom_losses as cl
 
 path_dict = loadpaths.loadpaths()
 
+def normalize(img, mean, std):
+    channels = []
+    for b in range(3):
+        ch = img[b, :, :]
+        ch = band_normalize(ch, mean[b], std[b])
+        channels.append(ch)
+    img = torch.stack(channels)
+    return img
+
+
+def band_normalize(img, mean, std):
+    min_value = mean - 2 * std
+    max_value = mean + 2 * std
+    img = (img - min_value) / (max_value - min_value)
+    # img = np.clip(img, 0, 255).type(torch.uint8)
+    return img
+
 class DataSetPatches(torch.utils.data.Dataset):
     '''Data set for images & masks. Saves file paths, but only loads into memory during __getitem__.
     
@@ -135,7 +152,8 @@ class DataSetPatches(torch.utils.data.Dataset):
             im, mask = self.random_crop((im,mask))
         
         if self.mean is not None:
-            im = TF.normalize(im, mean=self.mean, std=self.std)
+            # im = TF.normalize(im, mean=self.mean, std=self.std)
+            im = normalize(im, mean=self.mean, std=self.std)
             
         return im, mask
 

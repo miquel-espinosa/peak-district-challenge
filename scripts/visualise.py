@@ -8,6 +8,7 @@ from models import SiameseNetwork
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
+from land_cover_visualisation import plot_landcover_image
 
 # ------------------- CONSTANTS ------------------- #
 
@@ -52,51 +53,44 @@ ds = lcm.DataSetPatches(im_dir=dir_test_im_patches, mask_dir=dir_test_mask_patch
 trainloader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, pin_memory=True,
                                           shuffle=True, num_workers=2)
 
-torch.manual_seed(SEED)
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
+CHOOSE_BATCH_IDX = 2
 
-
-
-# Train the model
-
-model = SiameseNetwork().to(device)
-optimizer = optim.Adadelta(model.parameters(), lr=LR)
-
-scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
-criterion = nn.BCELoss()
-
-for epoch in range(1, EPOCHS + 1):
+iterator = iter(trainloader)
+i = 0
+found = False
+while found == False:
     
-    model.train()
-
-    # Training loop
-    for batch_idx, batch in enumerate(trainloader):
+    batch = next(iterator)
+    
+    if i == CHOOSE_BATCH_IDX and found == False:
+        found = True
         
-        # Create the artificial augmented image and get the change mask
         original_image, augmented_image, change_mask = combine_masks(batch, "continuous_fmix")
-        
         original_image_transformed = extra_transforms(original_image)
         augmented_image_transformed = extra_transforms(augmented_image)
         
-        # Send to CUDA device
-        original_image = original_image.to(device)
-        augmented_image = augmented_image.to(device)
-        change_mask = change_mask.to(device)
+        plot_landcover_image(change_mask, lc_class_name_list=torch.unique(change_mask).tolist())
         
-        optimizer.zero_grad()
-        outputs = model(original_image.float(), augmented_image.float()).squeeze()
-        loss = criterion(outputs, change_mask)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % LOG_INTERVAL == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(original_image), len(trainloader.dataset),
-                100. * batch_idx / len(trainloader), loss.item()))
-    
-        scheduler.step()
-    
-    # TODO: Validation loop
+        print(original_image_transformed.shape)
+        
+        # Plot the origial image and mask
+        fig, ax = plt.subplots(3,2, figsize=(10,10))
+        ax[0][0].imshow(batch[0][i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+        ax[0][0].set_title('Original image 1')
+        ax[0][1].imshow(batch[1][i])
+        ax[0][1].set_title('Original mask 1')
+        
+        ax[1][0].imshow(augmented_image[i].permute(1,2,0))
+        ax[1][0].set_title('Changed image 2')
+        ax[1][1].imshow(change_mask[i])
+        ax[1][1].set_title('Change mask between 1 and 2')
+        
+        ax[2][0].imshow(original_image_transformed[i].permute(1,2,0))
+        ax[2][0].set_title('Augmentations image 1')
+        ax[2][1].imshow(augmented_image_transformed[i].permute(1,2,0))
+        ax[2][1].set_title('Augmentations image 2')
+        
+        plt.show()
+        
+    i = i + 1

@@ -10,6 +10,7 @@ def extra_transforms(image):
     for transform in LIST_OF_TRANSFORMS:
         if random.random() < 0.25:
             image = transform()(image)
+    return image
 
 class RandomCrop(object):
     """Crop randomly the image in a sample.
