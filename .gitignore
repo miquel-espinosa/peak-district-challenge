@@ -10,3 +10,6 @@ fake-data/
 .idea/
 *.pth
 *.pt
+results/*
+Untitled.ipynb
+scripts/Untitled.ipynb

@@ -8,7 +8,24 @@ from models import SiameseNetwork
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
+import argparse
 from unet import UNet
+
+parser = argparse.ArgumentParser(description='training stuff')
+parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+                    help='input batch size for training (default: 64)')
+parser.add_argument('--optim', type=str, default='adam',
+                    choices=['adam', 'sgd', 'adadelta'])
+parser.add_argument('--epochs', type=int, default=200, metavar='N',
+                    help='number of epochs to train (default: 14)')
+parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
+                    help='learning rate (default: 1.0)')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                    help='random seed (default: 1)')
+parser.add_argument('--save-model-path', type=str, default='results/model.pt')
+parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                        help='how many batches to wait before logging training status')
+args = parser.parse_args()
 
 
 def compute_loss_and_acc(loader, model, criterion, subset):
@@ -32,14 +49,14 @@ def compute_loss_and_acc(loader, model, criterion, subset):
 MEAN=[94.7450, 102.9471, 96.9884]
 STD=[31.5119, 24.6287, 19.7533]
 
-LOG_INTERVAL = 10
+LOG_INTERVAL = args.log_interval
 TRAIN_TEST_RATIO = 0.8
 
 CROP_SIZE = 128 # RandomCrop transform
-BATCH_SIZE = 16
-LR = 0.0001
-EPOCHS=50
-SEED=42
+BATCH_SIZE = args.batch_size
+LR = args.lr
+EPOCHS=args.epochs
+SEED=args.seed
 
 # ------------------- DIRECTORY PATHS ------------------- #
 
@@ -97,7 +114,12 @@ else:
 # model = SNUNet_ECAM(3, 1).to(device)
 model = UNet(n_channels=3, n_classes=1).to(device)
 
-optimizer = optim.Adadelta(model.parameters(), lr=LR)
+if args.optim == 'sgd':
+    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9)
+elif args.optim == 'adam':
+    optimizer = optim.AdamW(model.parameters(), lr=LR)
+else:
+    optimizer = optim.Adadelta(model.parameters(), lr=LR)
 
 scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 criterion = nn.BCEWithLogitsLoss()
@@ -141,4 +163,4 @@ for epoch in range(1, EPOCHS + 1):
         compute_loss_and_acc(valloader, model, criterion, subset='validation')
     
     if epoch % 10 == 0:
-        torch.save(model.state_dict(), f"results/model_{epoch}.pth")
+        torch.save(model.state_dict(), f"{args.save_model_path}.pth")
