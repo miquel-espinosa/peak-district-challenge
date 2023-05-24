@@ -150,6 +150,9 @@ class DataSetPatches(torch.utils.data.Dataset):
         if self.random_transform_data:
             im, mask = self.transform_data(im, mask)
         
+        resolution = int(im.shape[-1]/2)
+        im = TF.resize(im, (resolution,resolution)) # half the resolution to 256x256
+        
         if self.random_crop is not None:
             im, mask = self.random_crop((im,mask))
         
