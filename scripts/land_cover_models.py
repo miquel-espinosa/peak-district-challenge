@@ -38,7 +38,7 @@ class DataSetPatches(torch.utils.data.Dataset):
                  preprocessing_func=None, shuffle_order_patches=True,
                  subsample_patches=False, frac_subsample=1, relabel_masks=True, random_transform_data=False,
                  path_mapping_dict='/home/tplas/repos/cnn-land-cover/content/label_mapping_dicts/label_mapping_dict__main_categories__2022-11-17-1512.pkl',
-                 transform=None):
+                 random_crop=None, mean=None, std=None):
         super(DataSetPatches, self).__init__()
         self.im_dir = im_dir
         self.mask_dir = mask_dir
@@ -52,7 +52,9 @@ class DataSetPatches(torch.utils.data.Dataset):
         self.list_tile_names = list_tile_names
         self.list_tile_patches_use = list_tile_patches_use
         self.random_transform_data = random_transform_data
-        self.transform = transform
+        self.random_crop = random_crop
+        self.mean = mean
+        self.std = std
 
         if self.preprocessing_func is not None:  # prep preprocess transformation
             rgb_means = self.preprocessing_func.keywords['mean']
@@ -129,11 +131,13 @@ class DataSetPatches(torch.utils.data.Dataset):
         if self.random_transform_data:
             im, mask = self.transform_data(im, mask)
         
-        if self.transform is not None:
-            for t in self.transform:
-                im, mask = t((im,mask))
+        if self.random_crop is not None:
+            im, mask = self.random_crop((im,mask))
         
-        return im, mask 
+        if self.mean is not None:
+            im = TF.normalize(im, mean=self.mean, std=self.std)
+            
+        return im, mask
 
     def __repr__(self):
         return f'DataLoaderPatches class'

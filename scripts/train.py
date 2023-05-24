@@ -3,14 +3,14 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, utils
 from fmix import combine_masks
-from my_transformations import RandomCrop, ToTensor, extra_transforms
+from my_transformations import RandomCrop, extra_transforms
 from models import SiameseNetwork
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 
 # ------------------- CONSTANTS ------------------- #
 
-MEAN=[ 94.7450, 102.9471,  96.9884]
+MEAN=[94.7450, 102.9471, 96.9884]
 STD=[31.5119, 24.6287, 19.7533]
 
 LOG_INTERVAL = 10
@@ -33,11 +33,6 @@ mask_dir_name_test = ''
 
 
 # ------------------- TRANSFORMS, DATASETS, DATALOADER ------------------- #
-# Define transforms
-transform=transforms.Compose([RandomCrop(CROP_SIZE),
-                              ToTensor(),
-                              transforms.Normalize(mean=MEAN, std=STD)
-                              ])
 
 # TODO: Dataset train, val, test split
 # Define dataset
@@ -48,13 +43,13 @@ ds = lcm.DataSetPatches(im_dir=dir_test_im_patches, mask_dir=dir_test_mask_patch
                                     shuffle_order_patches=True, relabel_masks=True,
                                     random_transform_data=True,
                                     subsample_patches=False, # frac_subsample=0.1,
-                                    path_mapping_dict=path_mapping_dict, transform=transform
-                                    )
+                                    path_mapping_dict=path_mapping_dict,
+                                    random_crop=RandomCrop(CROP_SIZE),
+                                    mean=MEAN, std=STD)
 
 # Define dataloader
 trainloader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, pin_memory=True,
                                           shuffle=True, num_workers=2)
-
 
 
 torch.manual_seed(SEED)
@@ -93,7 +88,7 @@ for epoch in range(1, EPOCHS + 1):
         change_mask = change_mask.to(device)
         
         optimizer.zero_grad()
-        outputs = model(original_image, augmented_image).squeeze()
+        outputs = model(original_image.float(), augmented_image.float()).squeeze()
         loss = criterion(outputs, change_mask)
         loss.backward()
         optimizer.step()

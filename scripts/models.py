@@ -19,7 +19,7 @@ class SiameseNetwork(nn.Module):
         `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_ as our feature extractor.
         In addition, we aren't using `TripletLoss` as the MNIST dataset is simple, so `BCELoss` can do the trick.
     """
-    def __init__(self):
+    def __init__(self, output_dim):
         super(SiameseNetwork, self).__init__()
         # get resnet model
         self.resnet = torchvision.models.resnet18(weights=None) #pretrained=True

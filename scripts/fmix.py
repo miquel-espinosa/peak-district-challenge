@@ -26,7 +26,7 @@ def mixup(x):
     lam = beta.rvs(1., 1.)
     return torch.ones_like(x) * lam
 
-def contiuous_fmix(x):
+def continuous_fmix(x):
     return fmix_mask(1., 3, x.shape[-2:], max_soft=0.5, reformulate=False)
 
 def fftfreqnd(h, w=None, z=None):
