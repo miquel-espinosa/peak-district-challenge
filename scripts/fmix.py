@@ -14,13 +14,18 @@ def combine_masks(x, method=None):
     permute = torch.randperm(img.shape[0])
     class_change = mask != mask[permute]
     artificial_mask = get_mask(method, img)
+    
+    # print(artificial_mask.shape) # TODO: get different masks per image in the batch
+    # Currently we have a single mask for the entire batch
+    
     final_mask = torch.logical_and(torch.tensor(artificial_mask), class_change)
+    final_mask = final_mask*artificial_mask
     modified_image = img * artificial_mask + img[permute] * (1-artificial_mask)
     
-    return original, modified_image, final_mask
+    return original, modified_image, final_mask, img[permute], artificial_mask
 
 def fmix(x):
-    return fmix_mask(1., 3, x.shape[-2:], max_soft=0.0, reformulate=False)
+    return fmix_mask(10., 3, x.shape[-2:], max_soft=0.0, reformulate=False)
 
 def mixup(x):
     lam = beta.rvs(1., 1.)

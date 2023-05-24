@@ -7,9 +7,15 @@ from torchvision.transforms import ColorJitter, RandomEqualize, RandomAutocontra
 LIST_OF_TRANSFORMS = [ColorJitter, RandomAutocontrast]
 
 def extra_transforms(image):
-    for transform in LIST_OF_TRANSFORMS:
-        if random.random() < 0.25:
-            image = transform()(image)
+    
+    # if random.random() < 0.25:
+    # image = ColorJitter(brightness=[0.8,1.2], contrast=[0.8,1.2], saturation=[0.6,1.4])(image)
+    image = ColorJitter(hue=[-0.1,-0.1])(image)
+    # if random.random() < 0.25:
+    #     image = RandomEqualize()(image)
+    # if random.random() < 0.25:
+    #     image = RandomAutocontrast()(image)
+        
     return image
 
 class RandomCrop(object):

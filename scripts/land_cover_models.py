@@ -136,6 +136,8 @@ class DataSetPatches(torch.utils.data.Dataset):
         assert hasattr(self, 'n_classes'), 'n_classes not defined (should be defined in create_label_mapping())'
         
     def __getitem__(self, index):
+        index = index
+        # index = index.item()
         '''Function that gets data items by index. I have added timings in case this should be sped up.'''
         patch_row = self.df_patches.iloc[index]
         im = np.load(patch_row['im_filepath'])  #0.25ms

@@ -8,7 +8,9 @@ from models import SiameseNetwork
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
-from land_cover_visualisation import plot_landcover_image
+from skimage import color
+from skimage import io
+
 
 # ------------------- CONSTANTS ------------------- #
 
@@ -66,30 +68,29 @@ while found == False:
     if i == CHOOSE_BATCH_IDX and found == False:
         found = True
         
-        original_image, augmented_image, change_mask = combine_masks(batch, "continuous_fmix")
+        original_image, augmented_image, change_mask, mixing_img, fouriermask = combine_masks(batch, "continuous_fmix")
         original_image_transformed = extra_transforms(original_image)
         augmented_image_transformed = extra_transforms(augmented_image)
         
-        plot_landcover_image(change_mask, lc_class_name_list=torch.unique(change_mask).tolist())
-        
-        print(original_image_transformed.shape)
-        
-        # Plot the origial image and mask
-        fig, ax = plt.subplots(3,2, figsize=(10,10))
-        ax[0][0].imshow(batch[0][i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+        # Plot the original image and mask
+        fig, ax = plt.subplots(2,3, figsize=(10,10))
         ax[0][0].set_title('Original image 1')
-        ax[0][1].imshow(batch[1][i])
-        ax[0][1].set_title('Original mask 1')
+        ax[0][0].imshow(original_image[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+        ax[0][1].set_title('Mixing with image 2')
+        ax[0][1].imshow(mixing_img[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+        ax[0][2].set_title('Fourier mask')
+        ax[0][2].imshow(fouriermask[0])
+        # ax[0][1].imshow(batch[1][i])
+        # io.imshow(color.label2rgb(batch[1][i],batch[0][i].permute(1,2,0)))
+        # ax[0][1].set_title('Original mask 1')
         
-        ax[1][0].imshow(augmented_image[i].permute(1,2,0))
-        ax[1][0].set_title('Changed image 2')
-        ax[1][1].imshow(change_mask[i])
-        ax[1][1].set_title('Change mask between 1 and 2')
+        ax[1][0].set_title('Augmentations image 1')
+        ax[1][0].imshow(original_image_transformed[i].permute(1,2,0))
+        ax[1][1].set_title('Augmentations image 2')
+        ax[1][1].imshow(augmented_image_transformed[i].permute(1,2,0))
+        ax[1][2].set_title('Change mask between 1 and 2')
+        ax[1][2].imshow(change_mask[i])
         
-        ax[2][0].imshow(original_image_transformed[i].permute(1,2,0))
-        ax[2][0].set_title('Augmentations image 1')
-        ax[2][1].imshow(augmented_image_transformed[i].permute(1,2,0))
-        ax[2][1].set_title('Augmentations image 2')
         
         plt.show()
         
