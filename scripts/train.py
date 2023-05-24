@@ -63,8 +63,8 @@ SEED=args.seed
 
 # ------------------- DIRECTORY PATHS ------------------- #
 
-# ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
-ROOT_PATH = '/shared/miguel/peak-district-challenge'
+ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
+# ROOT_PATH = '/shared/miguel/peak-district-challenge'
 dir_test_im_patches = f'{ROOT_PATH}/data/images_detailed_annotation/'
 dir_test_mask_patches = f'{ROOT_PATH}/data/masks_detailed_annotation/'
 path_mapping_dict=f'{ROOT_PATH}/content/label_mapping_dicts/label_mapping_dict__main_categories__2023-04-20-1541.pkl'
@@ -160,6 +160,9 @@ for epoch in range(1, EPOCHS + 1):
         
         loss.backward()
         optimizer.step()
+        scheduler.step()
+        
+        wandb.log({'lr': scheduler.get_last_lr()})
         
         train_cum_loss.append(loss.sum().item())  # cumulative train loss
         
@@ -172,7 +175,6 @@ for epoch in range(1, EPOCHS + 1):
                 epoch, batch_idx * len(original_image), len(trainloader.dataset),
                 100. * batch_idx / len(trainloader), loss.item()))
     
-        scheduler.step()
     
     train_loss = sum(train_cum_loss) / len(trainloader.dataset)
     train_correct /= len(trainloader.dataset)
@@ -184,12 +186,12 @@ for epoch in range(1, EPOCHS + 1):
         val_loss, val_acc = compute_loss_and_acc(valloader, model, criterion, subset='validation')
     
     try:
-        wandb.log({"epoch": epoch, "lr": scheduler.get_last_lr()[0],
+        wandb.log({"epoch": epoch, # "lr": scheduler.get_last_lr()[0],
                    "train_acc": train_acc, "train_loss": train_loss,
                    "val_acc": val_acc, "val_loss": val_loss})
     except ValueError:
         print(f"Invalid stats?")
     
     
-    if epoch % 10 == 0:
+    if epoch % 20 == 0:
         torch.save(model.state_dict(), f"{args.save_model_path}/model_{epoch}.pth")
