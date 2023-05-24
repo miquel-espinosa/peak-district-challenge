@@ -10,13 +10,14 @@ def get_mask(method,x):
 
 def combine_masks(x, method=None):
     img, mask = x
-    original = img#.deepcopy()
+    original = img#.deepcopy() TODO: do we want rectangular edges?
     permute = torch.randperm(img.shape[0])
     class_change = mask != mask[permute]
     artificial_mask = get_mask(method, img)
     final_mask = torch.logical_and(torch.tensor(artificial_mask), class_change)
-
-    return original, img * artificial_mask + img[permute] * (1-artificial_mask), final_mask
+    modified_image = img * artificial_mask + img[permute] * (1-artificial_mask)
+    
+    return original, modified_image, final_mask
 
 def fmix(x):
     return fmix_mask(1., 3, x.shape[-2:], max_soft=0.0, reformulate=False)
@@ -24,6 +25,9 @@ def fmix(x):
 def mixup(x):
     lam = beta.rvs(1., 1.)
     return torch.ones_like(x) * lam
+
+def contiuous_fmix(x):
+    return fmix_mask(1., 3, x.shape[-2:], max_soft=0.5, reformulate=False)
 
 def fftfreqnd(h, w=None, z=None):
     """ Get bin values for discrete fourier transform of size (h, w, z)
