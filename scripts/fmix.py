@@ -5,17 +5,25 @@ import torch
 import numpy as np
 from scipy.stats import beta
 
+def get_mask(method,x):
+    return globals()[method](x)
 
 def combine_masks(x, method=None):
-    img1, mask1 = x
-    original = img1#.deepcopy()
-    permute = torch.randperm(img1.shape[0])
-    class_change =  torch.logical_not(mask1 == mask1[permute])
-    _, artificial_mask = sample_mask(1., 3, img1.shape[-2:], max_soft=0.0, reformulate=False)
+    img, mask = x
+    original = img#.deepcopy()
+    permute = torch.randperm(img.shape[0])
+    class_change = mask != mask[permute]
+    artificial_mask = get_mask(method, img)
     final_mask = torch.logical_and(torch.tensor(artificial_mask), class_change)
 
-    return original, img1 * artificial_mask + img1[permute] * artificial_mask, final_mask
-    
+    return original, img * artificial_mask + img[permute] * (1-artificial_mask), final_mask
+
+def fmix(x):
+    return fmix_mask(1., 3, x.shape[-2:], max_soft=0.0, reformulate=False)
+
+def mixup(x):
+    lam = beta.rvs(1., 1.)
+    return torch.ones_like(x) * lam
 
 def fftfreqnd(h, w=None, z=None):
     """ Get bin values for discrete fourier transform of size (h, w, z)
@@ -133,7 +141,7 @@ def binarise_mask(mask, lam, in_shape, max_soft=0.0):
     return mask
 
 
-def sample_mask(alpha, decay_power, shape, max_soft=0.0, reformulate=False):
+def fmix_mask(alpha, decay_power, shape, max_soft=0.0, reformulate=False):
     """ Samples a mean lambda from beta distribution parametrised by alpha, creates a low frequency image and binarises
     it based on this lambda
 
@@ -153,7 +161,7 @@ def sample_mask(alpha, decay_power, shape, max_soft=0.0, reformulate=False):
     mask = make_low_freq_image(decay_power, shape)
     mask = binarise_mask(mask, lam, shape, max_soft)
 
-    return lam, mask
+    return mask
 
 
 def sample_and_apply(x, alpha, decay_power, shape, max_soft=0.0, reformulate=False):
@@ -167,27 +175,12 @@ def sample_and_apply(x, alpha, decay_power, shape, max_soft=0.0, reformulate=Fal
     :param reformulate: If True, uses the reformulation of [1].
     :return: mixed input, permutation indices, lambda value of mix,
     """
-    lam, mask = sample_mask(alpha, decay_power, shape, max_soft, reformulate)
+    lam, mask = fmix_mask(alpha, decay_power, shape, max_soft, reformulate)
     index = np.random.permutation(x.shape[0])
 
     x1, x2 = x * mask, x[index] * (1-mask)
     return x1+x2, index, lam
 
-def mixup(x):
-    """
-
-    :param x: Image batch on which to apply fmix of shape [b, c, shape*]
-    :param alpha: Alpha value for beta distribution from which to sample mean of mask
-    :param decay_power: Decay power for frequency decay prop 1/f**d
-    :param shape: Shape of desired mask, list up to 3 dims
-    :param max_soft: Softening value between 0 and 0.5 which smooths hard edges in the mask.
-    :param reformulate: If True, uses the reformulation of [1].
-    :return: mixed input, permutation indices, lambda value of mix,
-    """
-    lam = Beta(torch.tensor([float(0.1)]), torch.tensor([float(0.1)])).sample()
-    index = np.random.permutation(x.shape[0])
-
-    return x*lam+x[index]*(1-lam)
 
 class FMixBase:
     r""" FMix augmentation
