@@ -6,23 +6,24 @@ from fmix import combine_masks
 from my_transformations import RandomCrop, extra_transforms
 from models import SiameseNetwork
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 import matplotlib.pyplot as plt
 import argparse
 from unet import UNet
+import wandb
 
 parser = argparse.ArgumentParser(description='training stuff')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--optim', type=str, default='adam',
-                    choices=['adam', 'sgd', 'adadelta'])
+                    choices=['adamw', 'sgd', 'adadelta'])
 parser.add_argument('--epochs', type=int, default=200, metavar='N',
                     help='number of epochs to train (default: 14)')
 parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                     help='learning rate (default: 1.0)')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
-parser.add_argument('--save-model-path', type=str, default='results/model.pt')
+parser.add_argument('--save-model-path', type=str, default='results')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
 args = parser.parse_args()
@@ -40,9 +41,11 @@ def compute_loss_and_acc(loader, model, criterion, subset):
         correct += pred.eq(targets.view_as(pred)).sum().item()
     loss /= len(loader.dataset)
     correct /= len(loader.dataset)
+    acc = 100. * correct / len(loader.dataset)
     print('\n[{}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(subset,
-        loss, correct, len(loader.dataset),
-        100. * correct / len(loader.dataset)))
+        loss, correct, len(loader.dataset), acc))
+    
+    return loss, acc
 
 # ------------------- CONSTANTS ------------------- #
 
@@ -68,6 +71,9 @@ path_mapping_dict=f'{ROOT_PATH}/content/label_mapping_dicts/label_mapping_dict__
 
 mask_suffix_test_ds = '_lc_2022_detailed_mask.npy'
 mask_dir_name_test = ''
+
+wandb.init(project='peak-district', entity="mespinosami")
+wandb.config.update(args)
 
 
 # ------------------- TRANSFORMS, DATASETS, DATALOADER ------------------- #
@@ -116,21 +122,22 @@ model = UNet(n_channels=3, n_classes=1).to(device)
 
 if args.optim == 'sgd':
     optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9)
-elif args.optim == 'adam':
+elif args.optim == 'adamw':
     optimizer = optim.AdamW(model.parameters(), lr=LR)
 else:
     optimizer = optim.Adadelta(model.parameters(), lr=LR)
 
-scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
+# scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
 criterion = nn.BCEWithLogitsLoss()
 
 for epoch in range(1, EPOCHS + 1):
     
-    model.train()
+    train_cum_loss = []
+    train_correct = 0
 
     # Training loop
     for batch_idx, batch in enumerate(trainloader):
-        break
         # Create the artificial augmented image and get the change mask
         original_image, augmented_image, change_mask = combine_masks(batch, "continuous_fmix")
         
@@ -147,20 +154,42 @@ for epoch in range(1, EPOCHS + 1):
         optimizer.zero_grad()
         outputs = model(original_image.float(), augmented_image.float()).squeeze()
         loss = criterion(outputs, change_mask)
+        
+        pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
+        train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
+        
         loss.backward()
         optimizer.step()
+        
+        train_cum_loss.append(loss.sum().item())  # cumulative train loss
+        
+        
         if batch_idx % LOG_INTERVAL == 0:
+            wandb.log({'batch': epoch*(len(trainloader)//(BATCH_SIZE+LOG_INTERVAL))+batch_idx,
+                    'train_cum_loss': train_cum_loss[-1]/LOG_INTERVAL})
+            
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(original_image), len(trainloader.dataset),
                 100. * batch_idx / len(trainloader), loss.item()))
     
         scheduler.step()
     
-    compute_loss_and_acc(trainloader, model, criterion, subset='train')
+    train_loss = sum(train_cum_loss) / len(trainloader.dataset)
+    train_correct /= len(trainloader.dataset)
+    train_acc = 100. * train_correct / len(trainloader.dataset)
+    
     
     model.eval()
     with torch.no_grad():
-        compute_loss_and_acc(valloader, model, criterion, subset='validation')
+        val_loss, val_acc = compute_loss_and_acc(valloader, model, criterion, subset='validation')
+    
+    try:
+        wandb.log({"epoch": epoch, "lr": scheduler.get_last_lr()[0],
+                   "train_acc": train_acc, "train_loss": train_loss,
+                   "val_acc": val_acc, "val_loss": val_loss})
+    except ValueError:
+        print(f"Invalid stats?")
+    
     
     if epoch % 10 == 0:
-        torch.save(model.state_dict(), f"{args.save_model_path}.pth")
+        torch.save(model.state_dict(), f"{args.save_model_path}/model_{epoch}.pth")

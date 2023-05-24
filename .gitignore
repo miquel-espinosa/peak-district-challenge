@@ -13,3 +13,5 @@ fake-data/
 results/*
 Untitled.ipynb
 scripts/Untitled.ipynb
+# wandb/*
+results/*
