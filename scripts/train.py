@@ -38,10 +38,14 @@ def compute_loss_and_acc(loader, model, criterion, subset):
         outputs = model(images_1.float(), images_2.float()).squeeze()
         loss += criterion(outputs, targets).sum().item()  # sum up batch loss
         pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
+        targets = torch.where(targets > 0.5, 1, 0)
         correct += pred.eq(targets.view_as(pred)).sum().item()
     loss /= len(loader.dataset)
     correct /= len(loader.dataset)
-    acc = 100. * correct / len(loader.dataset)
+    it = iter(loader)
+    img = next(it)[0]
+    correct /= img.shape[-1] * img.shape[-2]
+    acc = 100. * correct
     print('\n[{}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(subset,
         loss, correct, len(loader.dataset), acc))
     
@@ -130,7 +134,8 @@ else:
 # scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 # scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
 scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*len(trainloader), eta_min=0.00001)
-criterion = nn.BCEWithLogitsLoss()
+# criterion = nn.BCEWithLogitsLoss()
+criterion = nn.MSELoss()#reduction='sum')
 
 for epoch in range(1, EPOCHS + 1):
     
@@ -155,8 +160,11 @@ for epoch in range(1, EPOCHS + 1):
         optimizer.zero_grad()
         outputs = model(original_image.float(), augmented_image.float()).squeeze()
         loss = criterion(outputs, change_mask)
+        # print(outputs.shape)
+        # print(change_mask.shape)
         
         pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
+        change_mask = torch.where(change_mask > 0.5, 1, 0)
         train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
         
         loss.backward()
@@ -169,8 +177,8 @@ for epoch in range(1, EPOCHS + 1):
         
         
         if batch_idx % LOG_INTERVAL == 0:
-            wandb.log({'batch': epoch*(len(trainloader)//(BATCH_SIZE+LOG_INTERVAL))+batch_idx,
-                    'train_cum_loss': train_cum_loss[-1]/LOG_INTERVAL})
+            # wandb.log({'batch': epoch*(len(trainloader)//(BATCH_SIZE+LOG_INTERVAL))+batch_idx,
+            #         'train_cum_loss': train_cum_loss[-1]/LOG_INTERVAL})
             
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(original_image), len(trainloader.dataset),
@@ -179,7 +187,8 @@ for epoch in range(1, EPOCHS + 1):
     
     train_loss = sum(train_cum_loss) / len(trainloader.dataset)
     train_correct /= len(trainloader.dataset)
-    train_acc = 100. * train_correct / len(trainloader.dataset)
+    train_correct /= CROP_SIZE*CROP_SIZE
+    train_acc = 100. * train_correct
     
     
     model.eval()

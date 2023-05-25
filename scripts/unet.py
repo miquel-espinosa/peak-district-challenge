@@ -39,11 +39,11 @@ class UNet(nn.Module):
         x25 = self.down4(x24)
         
         # Merge represetations at all levels
-        x1 = x11 + x21
-        x2 = x12 + x22
-        x3 = x13 + x23
-        x4 = x14 + x24
-        x5 = x15 + x25
+        x1 = x11 - x21
+        x2 = x12 - x22
+        x3 = x13 - x23
+        x4 = x14 - x24
+        x5 = x15 - x25
         
         # Decoder
         x = self.up1(x5, x4)

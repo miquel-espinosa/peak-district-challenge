@@ -2,9 +2,9 @@
 # source /shared/virtualenvs/cnn/bin/activate
 
 
+optim="adamw sgd adadelta"  # Optimizer to use
 batch_sizes="16 32"  # Batch sizes to iterate over
 learning_rates="0.001 0.0001"  # Learning rates to iterate over
-optim="adamw sgd adadelta"  # Optimizer to use
 epochs=200  # Number of epochs
 save_model_path="results"  # Path to save the trained models
 seed=42  # Random seed

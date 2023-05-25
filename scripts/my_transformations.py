@@ -9,10 +9,9 @@ LIST_OF_TRANSFORMS = [ColorJitter, RandomAutocontrast]
 
 def extra_transforms(image):
     
-    if random.random() < 0.25:
+    if random.random() < 0.5:
         image = ColorJitter(brightness=[0.8,1.2], contrast=[0.8,1.2], saturation=[0.6,1.4], hue=[-0.1,0.1])(image)
-    if random.random() < 0.25:
-        image = ColorJitter(brightness=[0.8,1.2], contrast=[0.8,1.2], saturation=[0.6,1.4], hue=[-0.1,0.1])(image)
+    
     # if random.random() < 0.25:
     # image = RandomEqualize()(image)
     #     image = RandomEqualize()(image)
