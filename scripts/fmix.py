@@ -15,6 +15,10 @@ def combine_masks(x, method=None):
         permute = torch.randperm(img.shape[0])
     else:
         permute = torch.arange(img.shape[0])
+
+    if random.random() < 0.5:
+        original = torch.tensor(fmix_mask(20., 3., (128, 128))).unsqueeze(0).repeat(original.shape[0], 3, 1, 1) * 0.3 + original * 0.7
+
     class_change = mask != mask[permute]
     artificial_mask = get_mask(method, img)
     
