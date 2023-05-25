@@ -11,7 +11,10 @@ def get_mask(method,x):
 def combine_masks(x, method=None):
     img, mask = x
     original = img#.deepcopy() TODO: do we want rectangular edges?
-    permute = torch.randperm(img.shape[0])
+    if random.random() < 0.5:
+        permute = torch.randperm(img.shape[0])
+    else:
+        permute = torch.arange(img.shape[0])
     class_change = mask != mask[permute]
     artificial_mask = get_mask(method, img)
     
@@ -27,7 +30,11 @@ def combine_masks(x, method=None):
 def combine_masks_prediction(x, method=None):
     img, mask = x
     original = img#.deepcopy() TODO: do we want rectangular edges?
-    permute = torch.randperm(img.shape[0])
+    if random.random() < 0.5:
+        permute = torch.randperm(img.shape[0])
+    else:
+        permute = torch.arange(img.shape[0])
+    
     class_change = mask != mask[permute]
     artificial_mask = get_mask(method, img)
     

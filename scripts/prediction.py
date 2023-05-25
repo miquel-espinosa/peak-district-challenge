@@ -121,7 +121,7 @@ device = torch.device("cpu")
 # model = SiameseNetwork(output_dim=(1,CROP_SIZE*CROP_SIZE)).to(device)
 # model = SNUNet_ECAM(3, 1).to(device)
 model = UNet(n_channels=3, n_classes=1).to(device)
-model.load_state_dict(torch.load('results_reduceonplateau/model_60.pth'))
+model.load_state_dict(torch.load('/shared/miguel/peak-district-challenge/results_inclass_mixing/model_40.pth'))
 model.eval()
 
 criterion = nn.MSELoss()#reduction='sum')
