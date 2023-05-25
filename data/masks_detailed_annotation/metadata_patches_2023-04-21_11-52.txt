@@ -1,0 +1,17 @@
+path_image_tile_tifs: /media/data-hdd/gis_pd/all_pd_tiles/
+path_tile_outline_shp: /home/tplas/repos/cnn-land-cover/content/evaluation_sample_50tiles/eval_all_tile_outlines/eval_all_tile_outlines.shp
+save_dir_mask_tifs: /home/tplas/data/gis/most recent APGB 12.5cm aerial/eval_all_tiles/tile_masks_detailed_annotation/
+df_lc provided: False
+path_lc: /home/tplas/repos/cnn-land-cover/content/evaluation_polygons/landscape_character_2022_detailed_CFGH-override/landscape_character_2022_detailed_CFGH-override.shp
+col_name_class_index: Class_lowi
+col_name_class_name: Class_low
+create_high_level_masks: False
+dir_im_save_patches: /home/tplas/data/gis/most recent APGB 12.5cm aerial/eval_all_tiles/images_detailed_annotation/
+dir_mask_save_patches: /home/tplas/data/gis/most recent APGB 12.5cm aerial/eval_all_tiles/masks_detailed_annotation/
+suffix_name: _lc_2022_detailed_mask
+discard_empty_patches: True
+save_im_patches: True
+create_metadata_patches: True
+create_patches: True
+create_mask_tiles: True
+Date: 2023-04-21 11:52:16.682691

@@ -134,8 +134,8 @@ else:
 
 # scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 # scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
-# scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*len(trainloader), eta_min=0.00001)
-scheduler = ReduceLROnPlateau(optimizer, threshold=0.001)
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*len(trainloader), eta_min=0.00001)
+# scheduler = ReduceLROnPlateau(optimizer, threshold=0.001)
 # criterion = nn.BCEWithLogitsLoss()
 criterion = nn.MSELoss()#reduction='sum')
 
@@ -173,7 +173,7 @@ for epoch in range(1, EPOCHS + 1):
         
         loss.backward()
         optimizer.step()
-        # scheduler.step()
+        scheduler.step()
         
         # wandb.log({'lr': scheduler.get_last_lr()[0]})
         wandb.log({'lr': optimizer.param_groups[0]['lr']})
@@ -201,7 +201,7 @@ for epoch in range(1, EPOCHS + 1):
     with torch.no_grad():
         val_loss, val_acc = compute_loss_and_acc(valloader, model, criterion, subset='validation')
     
-    scheduler.step(val_loss)
+    # scheduler.step(val_loss) # for plateau scheduler
 
     try:
         wandb.log({"epoch": epoch, # "lr": scheduler.get_last_lr()[0],

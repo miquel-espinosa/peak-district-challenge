@@ -4,7 +4,7 @@ __pycache__/
 *.code-workspace
 notebooks/lightning_logs/
 scripts/lightning_logs/
-data/
+# data/
 fake-data/
 .DS_Store
 .idea/
@@ -18,3 +18,10 @@ results/*
 results_adam/*
 results_reduceonplateau/*
 results_inclass_mixing/*
+*.npy
+*.prj
+*.tab
+*.tfw
+*.tif
+*.xml
+*.joblib
