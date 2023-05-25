@@ -2,15 +2,15 @@ import land_cover_models as lcm
 import torch
 import torch.nn as nn
 from torchvision import transforms, utils
-from fmix import combine_masks
+from fmix import combine_masks_prediction
 from my_transformations import RandomCrop, extra_transforms
 from models import SiameseNetwork
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 import matplotlib.pyplot as plt
 import argparse
 from unet import UNet
-import wandb
+
 
 parser = argparse.ArgumentParser(description='training stuff')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
@@ -60,7 +60,7 @@ LOG_INTERVAL = args.log_interval
 TRAIN_TEST_RATIO = 0.8
 
 CROP_SIZE = 128 # RandomCrop transform
-BATCH_SIZE = args.batch_size
+BATCH_SIZE = 10
 LR = args.lr
 EPOCHS=args.epochs
 SEED=args.seed
@@ -76,10 +76,7 @@ path_mapping_dict=f'{ROOT_PATH}/content/label_mapping_dicts/label_mapping_dict__
 mask_suffix_test_ds = '_lc_2022_detailed_mask.npy'
 mask_dir_name_test = ''
 
-wandb.init(project='peak-district', entity="mespinosami")
-wandb.config.update(args)
 
-torch.manual_seed(SEED)
 
 # ------------------- TRANSFORMS, DATASETS, DATALOADER ------------------- #
 
@@ -111,12 +108,12 @@ valloader = torch.utils.data.DataLoader(val_ds, batch_size=BATCH_SIZE, pin_memor
                                           shuffle=True, num_workers=2)
 
 
+torch.manual_seed(SEED)
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
-
+# if torch.cuda.is_available():
+#     device = torch.device("cuda")
+# else:
+device = torch.device("cpu")
 
 
 # Train the model
@@ -124,92 +121,79 @@ else:
 # model = SiameseNetwork(output_dim=(1,CROP_SIZE*CROP_SIZE)).to(device)
 # model = SNUNet_ECAM(3, 1).to(device)
 model = UNet(n_channels=3, n_classes=1).to(device)
+model.load_state_dict(torch.load('results_reduceonplateau/model_60.pth'))
+model.eval()
 
-if args.optim == 'sgd':
-    optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9)
-elif args.optim == 'adamw':
-    optimizer = optim.AdamW(model.parameters(), lr=LR)
-else:
-    optimizer = optim.Adadelta(model.parameters(), lr=LR)
-
-# scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
-# scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
-# scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*len(trainloader), eta_min=0.00001)
-scheduler = ReduceLROnPlateau(optimizer, threshold=0.001)
-# criterion = nn.BCEWithLogitsLoss()
 criterion = nn.MSELoss()#reduction='sum')
 
-for epoch in range(1, EPOCHS + 1):
-    
-    train_cum_loss = []
-    train_correct = 0
+iterator = iter(valloader)
+batch = next(iterator)
+train_correct = 0
+train_cum_loss = []
 
-    # Training loop
-    for batch_idx, batch in enumerate(trainloader):
-        # Create the artificial augmented image and get the change mask
-        original_image, augmented_image, change_mask = combine_masks(batch, "continuous_fmix")
+original_image, augmented_image, change_mask, mixing_img, fouriermask, class_change = combine_masks_prediction(batch, "continuous_fmix")
         
-        change_mask = change_mask.float()
-        
-        original_image_transformed = extra_transforms(original_image)
-        augmented_image_transformed = extra_transforms(augmented_image)
-        
-        # Send to CUDA device
-        original_image = original_image.to(device)
-        augmented_image = augmented_image.to(device)
-        change_mask = change_mask.to(device)
-        
-        optimizer.zero_grad()
-        outputs = model(original_image.float(), augmented_image.float()).squeeze()
-        # print('Outputs range:', outputs.min(),'-', outputs.max())
-        # print('Change mask range:', change_mask.min(),'-', change_mask.max())
-        loss = criterion(outputs, change_mask)
-        # print(outputs.shape)
-        # print(change_mask.shape)
-        
-        pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
-        change_mask = torch.where(change_mask > 0.5, 1, 0)
-        train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
-        
-        loss.backward()
-        optimizer.step()
-        # scheduler.step()
-        
-        # wandb.log({'lr': scheduler.get_last_lr()[0]})
-        wandb.log({'lr': optimizer.param_groups[0]['lr']})
+change_mask = change_mask.float()
 
-        
-        train_cum_loss.append(loss.sum().item())  # cumulative train loss
-        
-        
-        if batch_idx % LOG_INTERVAL == 0:
-            # wandb.log({'batch': epoch*(len(trainloader)//(BATCH_SIZE+LOG_INTERVAL))+batch_idx,
-            #         'train_cum_loss': train_cum_loss[-1]/LOG_INTERVAL})
-            
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(original_image), len(trainloader.dataset),
-                100. * batch_idx / len(trainloader), loss.item()))
-    
-    
-    train_loss = sum(train_cum_loss) / len(trainloader.dataset)
-    train_correct /= len(trainloader.dataset)
-    train_correct /= CROP_SIZE*CROP_SIZE
-    train_acc = 100. * train_correct
-    
-    
-    model.eval()
-    with torch.no_grad():
-        val_loss, val_acc = compute_loss_and_acc(valloader, model, criterion, subset='validation')
-    
-    scheduler.step(val_loss)
+original_image_transformed = extra_transforms(original_image)
+augmented_image_transformed = extra_transforms(augmented_image)
 
-    try:
-        wandb.log({"epoch": epoch, # "lr": scheduler.get_last_lr()[0],
-                   "train_acc": train_acc, "train_loss": train_loss,
-                   "val_acc": val_acc, "val_loss": val_loss})
-    except ValueError:
-        print(f"Invalid stats?")
-    
-    
-    if epoch % 20 == 0:
-        torch.save(model.state_dict(), f"{args.save_model_path}/model_{epoch}.pth")
+# Send to CUDA device
+original_image = original_image.to(device)
+augmented_image = augmented_image.to(device)
+change_mask = change_mask.to(device)
+        
+outputs = model(original_image.float(), augmented_image.float())
+loss = criterion(outputs.squeeze(), change_mask)
+        
+pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
+change_mask = torch.where(change_mask > 0.5, 1, 0)
+train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
+
+train_cum_loss.append(loss.sum().item())  # cumulative train loss
+
+train_loss = sum(train_cum_loss) / len(trainloader.dataset)
+train_correct /= len(trainloader.dataset)
+train_correct /= CROP_SIZE*CROP_SIZE
+train_acc = 100. * train_correct
+
+
+print("Accuracy eval:", train_acc)
+
+
+import matplotlib.pyplot as plt
+
+i=0
+        
+# Plot the original image and mask
+fig, ax = plt.subplots(3,3, figsize=(10,10))
+ax[0][0].set_title('Original image 1')
+ax[0][0].imshow(original_image[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+ax[0][1].set_title('Mixing with image 2')
+ax[0][1].imshow(mixing_img[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+ax[0][2].set_title('Fourier generated mask')
+ax[0][2].imshow(fouriermask[i], vmin=0, vmax=1)
+# ax[0][1].imshow(batch[1][i])
+# io.imshow(color.label2rgb(batch[1][i],batch[0][i].permute(1,2,0)))
+# ax[0][1].set_title('Original mask 1')
+
+ax[1][0].set_title('Augmentations image 1')
+ax[1][0].imshow(original_image_transformed[i].permute(1,2,0))
+ax[1][1].set_title('Augmentations image 2')
+ax[1][1].imshow(augmented_image_transformed[i].permute(1,2,0))
+ax[1][2].set_title('Class change')
+ax[1][2].imshow(class_change[i])
+
+ax[2][0].set_title('Change mask between 1 and 2 (GT)')
+ax[2][0].imshow(change_mask[i], vmin=0, vmax=1)
+ax[2][1].set_title('Predicted change')
+ax[2][1].imshow(outputs[i].permute(1,2,0).detach().numpy())
+ax[2][2].set_title('Predicted change between 0 and 1')
+ax[2][2].imshow(outputs[i].permute(1,2,0).detach().numpy(), vmin=0, vmax=1)
+
+print(outputs[i].max())
+print(outputs[i].min())
+print('----')
+print(change_mask[i].max())
+print(change_mask[i].min())
+plt.show()
