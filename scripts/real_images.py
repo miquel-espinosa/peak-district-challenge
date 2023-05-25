@@ -14,7 +14,26 @@ from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 import matplotlib.pyplot as plt
 import argparse
 from unet import UNet
+import joblib
+import os
 
+
+def normalize(img, mean, std):
+    channels = []
+    for b in range(3):
+        ch = img[b, :, :]
+        ch = band_normalize(ch, mean[b], std[b])
+        channels.append(ch)
+    img = torch.stack(channels)
+    return img
+
+
+def band_normalize(img, mean, std):
+    min_value = mean - 2 * std
+    max_value = mean + 2 * std
+    img = (img - min_value) / (max_value - min_value)
+    # img = np.clip(img, 0, 255).type(torch.uint8)
+    return img
 
 parser = argparse.ArgumentParser(description='training stuff')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
@@ -101,12 +120,27 @@ ROOT_PATH = '/shared/miguel/peak-district-challenge'
 #                                     mean=MEAN, std=STD)
 
 DATA_PATH = f'{ROOT_PATH}/data/example_tiles_complete/12.5cm-Aerial-Photo'
+IMAGE = 4
 
-path1 = f'{DATA_PATH}/2010-2017/119119-2_RGB_25_Shape/SK0961.tif'
-path2 = f'{DATA_PATH}/2020-2021/119120-1_RGB_25_Shape/SK0961.tif'
+if IMAGE==1:
+    # image 1
+    im_path1 = f'{DATA_PATH}/2010-2017/119119-2_RGB_25_Shape/SK0961.tif'
+    im_path2 = f'{DATA_PATH}/2020-2021/119120-1_RGB_25_Shape/SK0961.tif'
+elif IMAGE==2:
+    # image 2
+    im_path1 = f'{DATA_PATH}/2010-2017/119119-2_RGB_47_Shape/SK2096.tif'
+    im_path2 = f'{DATA_PATH}/2020-2021/119120-1_RGB_47_Shape/SK2096.tif'
+elif IMAGE==3:
+    # image 3
+    im_path1 = f'{DATA_PATH}/2010-2017/119119-2_RGB_63_Shape/SK0987.tif'
+    im_path2 = f'{DATA_PATH}/2020-2021/119120-1_RGB_63_Shape/SK0987.tif'
+elif IMAGE==4:
+    # image 4
+    im_path1 = f'{DATA_PATH}/2010-2017/119119-2_RGB_66_Shape/SK1091.tif'
+    im_path2 = f'{DATA_PATH}/2020-2021/119120-1_RGB_66_Shape/SK1091.tif'
 
-image = torch.tensor(imageio.v2.imread(path1))
-image2 = torch.tensor(imageio.v2.imread(path2))
+image  = torch.tensor(imageio.v2.imread(im_path1))
+image2 = torch.tensor(imageio.v2.imread(im_path2))
 
 image = image[:-64,:-64,:]
 image2 = image2[:-64,:-64,:]
@@ -165,6 +199,9 @@ model.eval()
 criterion = nn.MSELoss()#reduction='sum')
 
 for i, (im, im2) in enumerate(zip(tiles, tiles2)):
+
+    im  = normalize(im, mean=MEAN, std=STD)
+    im2 = normalize(im2, mean=MEAN, std=STD)
     
     # train_correct = 0
     # train_cum_loss = []
@@ -201,12 +238,15 @@ for i, (im, im2) in enumerate(zip(tiles, tiles2)):
 
     # print("Accuracy eval:", train_acc)
 
+    if not os.path.exists(f'{SAVE_PATH_FIG}/image_{IMAGE}'):
+        os.makedirs(f'{SAVE_PATH_FIG}/image_{IMAGE}')
 
+    joblib.dump(outputs[0].permute(1,2,0).detach().cpu().numpy(), f'{SAVE_PATH_FIG}/image_{IMAGE}/{i}.joblib')
 
     if PLOT:
         import matplotlib.pyplot as plt
 
-        i=0
+        j=0
                 
         # Plot the original image and mask
         fig, ax = plt.subplots(2,2, figsize=(10,10))
