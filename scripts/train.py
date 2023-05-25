@@ -63,8 +63,8 @@ SEED=args.seed
 
 # ------------------- DIRECTORY PATHS ------------------- #
 
-ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
-# ROOT_PATH = '/shared/miguel/peak-district-challenge'
+# ROOT_PATH = '/home/s2254242/PHD/ATI/peak-district-challenge'
+ROOT_PATH = '/shared/miguel/peak-district-challenge'
 dir_test_im_patches = f'{ROOT_PATH}/data/images_detailed_annotation/'
 dir_test_mask_patches = f'{ROOT_PATH}/data/masks_detailed_annotation/'
 path_mapping_dict=f'{ROOT_PATH}/content/label_mapping_dicts/label_mapping_dict__main_categories__2023-04-20-1541.pkl'
@@ -128,7 +128,8 @@ else:
     optimizer = optim.Adadelta(model.parameters(), lr=LR)
 
 # scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
-scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
+# scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*(len(trainloader)//BATCH_SIZE), eta_min=0.00001)
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS*len(trainloader), eta_min=0.00001)
 criterion = nn.BCEWithLogitsLoss()
 
 for epoch in range(1, EPOCHS + 1):
@@ -162,7 +163,7 @@ for epoch in range(1, EPOCHS + 1):
         optimizer.step()
         scheduler.step()
         
-        wandb.log({'lr': scheduler.get_last_lr()})
+        wandb.log({'lr': scheduler.get_last_lr()[0]})
         
         train_cum_loss.append(loss.sum().item())  # cumulative train loss
         
