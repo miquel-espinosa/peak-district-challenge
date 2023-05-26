@@ -14,7 +14,8 @@ big_array = np.load(f'{PATH_FIG_THRESHOLD}/array.npy')
 print(big_array.max())
 print(big_array.min())
 
-
+plt.imshow(big_array, interpolation='none')
+plt.savefig(f'{PATH_FIG_THRESHOLD}/all.png', cmap='binary', dpi=300)
 
 
 for id, i in enumerate([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]):
@@ -23,5 +24,5 @@ for id, i in enumerate([0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]):
     # print(thres)
     np.save(f'{PATH_FIG_THRESHOLD}/threshold{id}', threshold)
     plt.imshow(threshold, interpolation='none')
-    plt.savefig(f'{PATH_FIG_THRESHOLD}/threshold{id}.png', dpi=300)
+    plt.savefig(f'{PATH_FIG_THRESHOLD}/threshold{id}.png', cmap='binary', dpi=300)
     # exit()
