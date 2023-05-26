@@ -121,79 +121,82 @@ device = torch.device("cpu")
 # model = SiameseNetwork(output_dim=(1,CROP_SIZE*CROP_SIZE)).to(device)
 # model = SNUNet_ECAM(3, 1).to(device)
 model = UNet(n_channels=3, n_classes=1).to(device)
-model.load_state_dict(torch.load('/shared/miguel/peak-district-challenge/results_inclass_mixing/model_40.pth'))
+# model.load_state_dict(torch.load('/shared/miguel/peak-district-challenge/results_inclass_mixing/model_40.pth'))
+model.load_state_dict(torch.load('/shared/shadow_model_lowlr/model_120.pth'))
 model.eval()
 
 criterion = nn.MSELoss()#reduction='sum')
 
 iterator = iter(valloader)
 batch = next(iterator)
-train_correct = 0
-train_cum_loss = []
 
-original_image, augmented_image, change_mask, mixing_img, fouriermask, class_change = combine_masks_prediction(batch, "continuous_fmix")
-        
-change_mask = change_mask.float()
+for batch in valloader:
+    train_correct = 0
+    train_cum_loss = []
 
-original_image_transformed = extra_transforms(original_image)
-augmented_image_transformed = extra_transforms(augmented_image)
+    original_image, augmented_image, change_mask, mixing_img, fouriermask, class_change = combine_masks_prediction(batch, "continuous_fmix")
+            
+    change_mask = change_mask.float()
 
-# Send to CUDA device
-original_image = original_image.to(device)
-augmented_image = augmented_image.to(device)
-change_mask = change_mask.to(device)
-        
-outputs = model(original_image.float(), augmented_image.float())
-loss = criterion(outputs.squeeze(), change_mask)
-        
-pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
-change_mask = torch.where(change_mask > 0.5, 1, 0)
-train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
+    original_image_transformed = extra_transforms(original_image)
+    augmented_image_transformed = extra_transforms(augmented_image)
 
-train_cum_loss.append(loss.sum().item())  # cumulative train loss
+    # Send to CUDA device
+    original_image = original_image.to(device)
+    augmented_image = augmented_image.to(device)
+    change_mask = change_mask.to(device)
+            
+    outputs = model(original_image.float(), augmented_image.float())
+    loss = criterion(outputs.squeeze(), change_mask)
+            
+    pred = torch.where(outputs > 0.5, 1, 0)  # get the index of the max log-probability
+    change_mask = torch.where(change_mask > 0.5, 1, 0)
+    train_correct += pred.eq(change_mask.view_as(pred)).sum().item()
 
-train_loss = sum(train_cum_loss) / len(trainloader.dataset)
-train_correct /= len(trainloader.dataset)
-train_correct /= CROP_SIZE*CROP_SIZE
-train_acc = 100. * train_correct
+    train_cum_loss.append(loss.sum().item())  # cumulative train loss
+
+    train_loss = sum(train_cum_loss) / len(trainloader.dataset)
+    train_correct /= len(trainloader.dataset)
+    train_correct /= CROP_SIZE*CROP_SIZE
+    train_acc = 100. * train_correct
 
 
-print("Accuracy eval:", train_acc)
+    print("Accuracy eval:", train_acc)
 
 
-import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
-i=0
-        
-# Plot the original image and mask
-fig, ax = plt.subplots(3,3, figsize=(10,10))
-ax[0][0].set_title('Original image 1')
-ax[0][0].imshow(original_image[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
-ax[0][1].set_title('Mixing with image 2')
-ax[0][1].imshow(mixing_img[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
-ax[0][2].set_title('Fourier generated mask')
-ax[0][2].imshow(fouriermask[i], vmin=0, vmax=1)
-# ax[0][1].imshow(batch[1][i])
-# io.imshow(color.label2rgb(batch[1][i],batch[0][i].permute(1,2,0)))
-# ax[0][1].set_title('Original mask 1')
+    i=0
+            
+    # Plot the original image and mask
+    fig, ax = plt.subplots(3,3, figsize=(20,20))
+    ax[0][0].set_title('Original image 1')
+    ax[0][0].imshow(original_image[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+    ax[0][1].set_title('Mixing with image 2')
+    ax[0][1].imshow(mixing_img[i].permute(1,2,0))#.type(torch.uint8))#, vmin=0, vmax=1)
+    ax[0][2].set_title('Fourier generated mask')
+    ax[0][2].imshow(fouriermask[i], vmin=0, vmax=1)
+    # ax[0][1].imshow(batch[1][i])
+    # io.imshow(color.label2rgb(batch[1][i],batch[0][i].permute(1,2,0)))
+    # ax[0][1].set_title('Original mask 1')
 
-ax[1][0].set_title('Augmentations image 1')
-ax[1][0].imshow(original_image_transformed[i].permute(1,2,0))
-ax[1][1].set_title('Augmentations image 2')
-ax[1][1].imshow(augmented_image_transformed[i].permute(1,2,0))
-ax[1][2].set_title('Class change')
-ax[1][2].imshow(class_change[i])
+    ax[1][0].set_title('Augmentations image 1')
+    ax[1][0].imshow(original_image_transformed[i].permute(1,2,0))
+    ax[1][1].set_title('Augmentations image 2')
+    ax[1][1].imshow(augmented_image_transformed[i].permute(1,2,0))
+    ax[1][2].set_title('Class change')
+    ax[1][2].imshow(class_change[i])
 
-ax[2][0].set_title('Change mask between 1 and 2 (GT)')
-ax[2][0].imshow(change_mask[i], vmin=0, vmax=1)
-ax[2][1].set_title('Predicted change')
-ax[2][1].imshow(outputs[i].permute(1,2,0).detach().numpy())
-ax[2][2].set_title('Predicted change between 0 and 1')
-ax[2][2].imshow(outputs[i].permute(1,2,0).detach().numpy(), vmin=0, vmax=1)
+    ax[2][0].set_title('Change mask between 1 and 2 (GT)')
+    ax[2][0].imshow(change_mask[i], vmin=0, vmax=1)
+    ax[2][1].set_title('Predicted change')
+    ax[2][1].imshow(outputs[i].permute(1,2,0).detach().numpy())
+    ax[2][2].set_title('Predicted change between 0 and 1')
+    ax[2][2].imshow(outputs[i].permute(1,2,0).detach().numpy(), vmin=0, vmax=1)
 
-print(outputs[i].max())
-print(outputs[i].min())
-print('----')
-print(change_mask[i].max())
-print(change_mask[i].min())
-plt.show()
+    print(outputs[i].max())
+    print(outputs[i].min())
+    print('----')
+    print(change_mask[i].max())
+    print(change_mask[i].min())
+    plt.show()
